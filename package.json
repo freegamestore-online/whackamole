@@ -1,0 +1,13 @@
+{
+  "name": "whackamole",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": { "node": ">=22" },
+  "pnpm": { "onlyBuiltDependencies": ["esbuild"] },
+  "scripts": {
+    "dev": "pnpm --filter @whackamole/web dev",
+    "build": "pnpm --filter @whackamole/web build",
+    "preview": "pnpm --filter @whackamole/web preview",
+    "typecheck": "pnpm --filter @whackamole/web exec tsc -b"
+  }
+}
