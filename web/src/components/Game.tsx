@@ -12,6 +12,7 @@ const GOLDEN_DURATION_MULT = 0.6;
 interface GameProps {
   onScore: (score: number) => void;
   onGameOver: () => void;
+  paused?: boolean;
 }
 
 function getMoleType(elapsed: number): MoleType {
@@ -246,7 +247,7 @@ function MoleView({ mole, holeRect, onWhack }: MoleViewProps) {
 
 /* ---------- Main Game ---------- */
 
-export function Game({ onScore, onGameOver }: GameProps) {
+export function Game({ onScore, onGameOver, paused }: GameProps) {
   const [moles, setMoles] = useState<Mole[]>([]);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -259,12 +260,15 @@ export function Game({ onScore, onGameOver }: GameProps) {
   const gameOverCalledRef = useRef(false);
   const onScoreRef = useRef(onScore);
   const onGameOverRef = useRef(onGameOver);
+  const pausedRef = useRef(paused);
   onScoreRef.current = onScore;
   onGameOverRef.current = onGameOver;
+  pausedRef.current = paused;
 
   // Timer countdown
   useEffect(() => {
     const interval = setInterval(() => {
+      if (pausedRef.current) return;
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
@@ -285,6 +289,10 @@ export function Game({ onScore, onGameOver }: GameProps) {
     let timeout: ReturnType<typeof setTimeout>;
 
     function spawnMole() {
+      if (pausedRef.current) {
+        timeout = setTimeout(spawnMole, 200);
+        return;
+      }
       const elapsed = (Date.now() - gameStartRef.current) / 1000;
       if (elapsed >= GAME_DURATION) return;
 
