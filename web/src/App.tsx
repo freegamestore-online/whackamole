@@ -15,11 +15,16 @@ export default function App() {
   const [bestScore, setBestScore] = useState(getBestScore);
   const [paused, setPaused] = useState(false);
   const [gameKey, setGameKey] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(30);
   const scoreRef = useRef(0);
 
   const handleScore = useCallback((s: number) => {
     scoreRef.current = s;
     setScore(s);
+  }, []);
+
+  const handleStats = useCallback((stats: { timeLeft: number }) => {
+    setTimeLeft(stats.timeLeft);
   }, []);
 
   const handleGameOver = useCallback(() => {
@@ -57,6 +62,7 @@ export default function App() {
           stats={[
             { label: "Score", value: score, accent: true },
             { label: "Best", value: bestScore },
+            { label: "Time", value: `${timeLeft}s` },
           ]}
           onPlayPause={phase === "playing" ? () => setPaused(p => !p) : undefined}
           paused={paused}
@@ -75,7 +81,7 @@ export default function App() {
       }
     >
       <div className="relative w-full h-full">
-        <Game key={gameKey} onScore={handleScore} onGameOver={handleGameOver} paused={paused} />
+        <Game key={gameKey} onScore={handleScore} onGameOver={handleGameOver} onStats={handleStats} paused={paused} />
         {phase === "over" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4" style={{ background: "rgba(0,0,0,0.55)" }}>
             <p

@@ -13,6 +13,7 @@ const GOLDEN_DURATION_MULT = 0.6;
 interface GameProps {
   onScore: (score: number) => void;
   onGameOver: () => void;
+  onStats?: (stats: { timeLeft: number }) => void;
   paused?: boolean;
 }
 
@@ -248,13 +249,13 @@ function MoleView({ mole, holeRect, onWhack }: MoleViewProps) {
 
 /* ---------- Main Game ---------- */
 
-export function Game({ onScore, onGameOver, paused }: GameProps) {
+export function Game({ onScore, onGameOver, onStats, paused }: GameProps) {
   const sounds = useGameSounds();
   const soundsRef = useRef(sounds);
   soundsRef.current = sounds;
   const [moles, setMoles] = useState<Mole[]>([]);
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const timeLeftRef = useRef(GAME_DURATION);
   const scoreRef = useRef(0);
   const moleIdRef = useRef(0);
   const particleIdRef = useRef(0);
@@ -264,27 +265,29 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
   const gameOverCalledRef = useRef(false);
   const onScoreRef = useRef(onScore);
   const onGameOverRef = useRef(onGameOver);
+  const onStatsRef = useRef(onStats);
   const pausedRef = useRef(paused);
   onScoreRef.current = onScore;
   onGameOverRef.current = onGameOver;
+  onStatsRef.current = onStats;
   pausedRef.current = paused;
 
   // Timer countdown
   useEffect(() => {
+    onStatsRef.current?.({ timeLeft: GAME_DURATION });
     const interval = setInterval(() => {
       if (pausedRef.current) return;
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          if (!gameOverCalledRef.current) {
-            gameOverCalledRef.current = true;
-            soundsRef.current.playGameOver();
-            onGameOverRef.current();
-          }
-          return 0;
+      const next = timeLeftRef.current <= 1 ? 0 : timeLeftRef.current - 1;
+      timeLeftRef.current = next;
+      onStatsRef.current?.({ timeLeft: next });
+      if (next === 0) {
+        clearInterval(interval);
+        if (!gameOverCalledRef.current) {
+          gameOverCalledRef.current = true;
+          soundsRef.current.playGameOver();
+          onGameOverRef.current();
         }
-        return prev - 1;
-      });
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -402,26 +405,6 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
           'url("data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2732%27 height=%2732%27 viewBox=%270 0 32 32%27><text y=%2724%27 font-size=%2724%27>🔨</text></svg>") 16 16, crosshair',
       }}
     >
-      {/* HUD */}
-      <div className="flex items-center gap-6">
-        <div
-          className="text-2xl font-bold px-4 py-1 rounded-xl"
-          style={{
-            fontFamily: "Fraunces, serif",
-            background: timeLeft <= 5 ? "var(--error)" : "var(--accent)",
-            color: "#fff",
-          }}
-        >
-          {timeLeft}s
-        </div>
-        <div
-          className="text-2xl font-bold"
-          style={{ fontFamily: "Fraunces, serif" }}
-        >
-          {scoreRef.current} pts
-        </div>
-      </div>
-
       {/* Grid */}
       <div
         style={{
