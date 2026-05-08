@@ -56,6 +56,15 @@ export default function App() {
             { label: "Best", value: bestScore },
           ]}
           actions={<GameAuth />}
+          rules={
+            <div>
+              <h3 style={{ fontWeight: 700 }}>Whack-a-Mole</h3>
+              <h4 style={{ fontWeight: 600 }}>Rules</h4>
+              <ul><li>Tap moles when they pop up — 30-second rounds</li></ul>
+              <h4 style={{ fontWeight: 600 }}>Scoring</h4>
+              <ul><li>Green mole: +1 point</li><li>Red mole: -1 point (avoid!)</li><li>Golden mole: +3 bonus</li></ul>
+            </div>
+          }
         />
       }
     >
