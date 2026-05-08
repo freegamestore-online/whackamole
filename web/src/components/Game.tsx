@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
+import { useGameSounds } from "@freegamestore/games";
 import type { Mole, MoleType } from "../types";
 
 const GAME_DURATION = 30;
@@ -248,6 +249,9 @@ function MoleView({ mole, holeRect, onWhack }: MoleViewProps) {
 /* ---------- Main Game ---------- */
 
 export function Game({ onScore, onGameOver, paused }: GameProps) {
+  const sounds = useGameSounds();
+  const soundsRef = useRef(sounds);
+  soundsRef.current = sounds;
   const [moles, setMoles] = useState<Mole[]>([]);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -274,6 +278,7 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
           clearInterval(interval);
           if (!gameOverCalledRef.current) {
             gameOverCalledRef.current = true;
+            soundsRef.current.playGameOver();
             onGameOverRef.current();
           }
           return 0;
@@ -355,10 +360,13 @@ export function Game({ onScore, onGameOver, paused }: GameProps) {
       let delta: number;
       if (mole.type === "red") {
         delta = -20;
+        soundsRef.current.playError();
       } else if (mole.type === "golden") {
         delta = 50;
+        soundsRef.current.playScore();
       } else {
         delta = 10;
+        soundsRef.current.playScore();
       }
       scoreRef.current = Math.max(0, scoreRef.current + delta);
       onScoreRef.current(scoreRef.current);
