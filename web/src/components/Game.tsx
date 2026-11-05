@@ -6,6 +6,9 @@ const GAME_DURATION = 30;
 const GRID_SIZE = 3;
 const HOLES = GRID_SIZE * GRID_SIZE;
 
+const HAMMER_CURSOR =
+  'url("data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2732%27 height=%2732%27 viewBox=%270 0 32 32%27><text y=%2724%27 font-size=%2724%27>🔨</text></svg>") 16 16, crosshair';
+
 const TICK_MS = 100;
 const FIRST_SPAWN_MS = 500;
 const BONK_MS = 300;
@@ -146,7 +149,7 @@ function MoleView({ mole, holeRect, onWhack }: MoleViewProps) {
         transform: "translateX(-50%)",
         width: holeRect ? holeRect.width * 0.65 : 52,
         height: holeRect ? holeRect.height * 0.8 : 64,
-        cursor: 'url("data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2732%27 height=%2732%27 viewBox=%270 0 32 32%27><text y=%2724%27 font-size=%2724%27>🔨</text></svg>") 16 16, crosshair',
+        cursor: HAMMER_CURSOR,
         animation: `${animName} ${animDuration} ease-out forwards`,
         zIndex: 2,
         touchAction: "none",
@@ -385,8 +388,7 @@ export function Game({ onScore, onGameOver, onStats, paused }: GameProps) {
     <div
       className="flex flex-col items-center justify-center h-full gap-4 select-none"
       style={{
-        cursor:
-          'url("data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2732%27 height=%2732%27 viewBox=%270 0 32 32%27><text y=%2724%27 font-size=%2724%27>🔨</text></svg>") 16 16, crosshair',
+        cursor: HAMMER_CURSOR,
       }}
     >
       {/* Grid */}

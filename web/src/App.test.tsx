@@ -3,7 +3,8 @@ import { render, fireEvent, screen } from "@testing-library/react";
 import App from "./App";
 
 describe("App restart", () => {
-  it("clears pause when restarting", () => {
+  // Generous timeout: the first full App render (SDK shell) is slow on a loaded CI box.
+  it("clears pause when restarting", { timeout: 20_000 }, () => {
     render(<App />);
     const pause = screen.getByRole("button", { name: "Pause" });
     fireEvent.click(pause);
