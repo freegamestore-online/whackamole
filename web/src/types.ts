@@ -6,7 +6,7 @@ export interface Mole {
   id: number;
   hole: number;
   type: MoleType;
-  appearedAt: number;
-  duration: number;
+  /** Game-clock ms (pause excluded) at which the mole leaves the board. */
+  expiresAt: number;
   whacked: boolean;
 }

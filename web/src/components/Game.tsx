@@ -6,6 +6,12 @@ const GAME_DURATION = 30;
 const GRID_SIZE = 3;
 const HOLES = GRID_SIZE * GRID_SIZE;
 
+const TICK_MS = 100;
+const FIRST_SPAWN_MS = 500;
+const BONK_MS = 300;
+
+export const SCORE_DELTA: Record<MoleType, number> = { normal: 10, red: -20, golden: 50 };
+
 const MOLE_BASE_DURATION = 1200;
 const MOLE_MIN_DURATION = 800;
 const GOLDEN_DURATION_MULT = 0.6;
@@ -131,6 +137,8 @@ function MoleView({ mole, holeRect, onWhack }: MoleViewProps) {
   return (
     <div
       onPointerDown={handleClick}
+      role="button"
+      aria-label={`${mole.type} mole`}
       style={{
         position: "absolute",
         bottom: 0,
@@ -259,7 +267,7 @@ export function Game({ onScore, onGameOver, onStats, paused }: GameProps) {
   const scoreRef = useRef(0);
   const moleIdRef = useRef(0);
   const particleIdRef = useRef(0);
-  const gameStartRef = useRef(Date.now());
+  const gameMsRef = useRef(0);
   const holeRefs = useRef<(HTMLDivElement | null)[]>([]);
   const molesRef = useRef<Mole[]>([]);
   const gameOverCalledRef = useRef(false);
@@ -272,74 +280,65 @@ export function Game({ onScore, onGameOver, onStats, paused }: GameProps) {
   onStatsRef.current = onStats;
   pausedRef.current = paused;
 
-  // Timer countdown
+  // Single game clock: everything (countdown, spawning, mole lifetimes) runs
+  // on unpaused game time, so pausing freezes the whole board.
   useEffect(() => {
+    let gameMs = 0;
+    let nextSpawnAt = FIRST_SPAWN_MS;
     onStatsRef.current?.({ timeLeft: GAME_DURATION });
+
     const interval = setInterval(() => {
       if (pausedRef.current) return;
-      const next = timeLeftRef.current <= 1 ? 0 : timeLeftRef.current - 1;
-      timeLeftRef.current = next;
-      onStatsRef.current?.({ timeLeft: next });
-      if (next === 0) {
+      gameMs += TICK_MS;
+      gameMsRef.current = gameMs;
+
+      const timeLeft = Math.max(0, GAME_DURATION - Math.floor(gameMs / 1000));
+      if (timeLeft !== timeLeftRef.current) {
+        timeLeftRef.current = timeLeft;
+        onStatsRef.current?.({ timeLeft });
+      }
+      if (timeLeft === 0) {
         clearInterval(interval);
         if (!gameOverCalledRef.current) {
           gameOverCalledRef.current = true;
           soundsRef.current.playGameOver();
           onGameOverRef.current();
         }
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Mole spawner
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout>;
-
-    function spawnMole() {
-      if (pausedRef.current) {
-        timeout = setTimeout(spawnMole, 200);
         return;
       }
-      const elapsed = (Date.now() - gameStartRef.current) / 1000;
-      if (elapsed >= GAME_DURATION) return;
 
-      const currentMoles = molesRef.current.filter((m) => !m.whacked);
-      const maxMoles = getMaxMoles(elapsed);
-      if (currentMoles.length < maxMoles) {
-        const occupiedHoles = new Set(currentMoles.map((m) => m.hole));
+      let next = molesRef.current.filter((m) => m.expiresAt > gameMs);
+
+      if (gameMs >= nextSpawnAt) {
+        nextSpawnAt = gameMs + 400 + Math.random() * 600;
+        const elapsed = gameMs / 1000;
+        const active = next.filter((m) => !m.whacked);
+        const occupiedHoles = new Set(active.map((m) => m.hole));
         const freeHoles = Array.from({ length: HOLES }, (_, i) => i).filter(
           (h) => !occupiedHoles.has(h),
         );
-        if (freeHoles.length > 0) {
+        if (active.length < getMaxMoles(elapsed) && freeHoles.length > 0) {
           const hole = freeHoles[Math.floor(Math.random() * freeHoles.length)]!;
           const type = getMoleType(elapsed);
-          const duration = getMoleDuration(elapsed, type);
-          const newMole: Mole = {
-            id: moleIdRef.current++,
-            hole,
-            type,
-            appearedAt: Date.now(),
-            duration,
-            whacked: false,
-          };
-          molesRef.current = [...molesRef.current, newMole];
-          setMoles([...molesRef.current]);
-
-          // Auto-remove after duration
-          setTimeout(() => {
-            molesRef.current = molesRef.current.filter((m) => m.id !== newMole.id);
-            setMoles([...molesRef.current]);
-          }, duration);
+          next = [
+            ...next,
+            {
+              id: moleIdRef.current++,
+              hole,
+              type,
+              expiresAt: gameMs + getMoleDuration(elapsed, type),
+              whacked: false,
+            },
+          ];
         }
       }
 
-      const nextSpawnDelay = 400 + Math.random() * 600;
-      timeout = setTimeout(spawnMole, nextSpawnDelay);
-    }
-
-    timeout = setTimeout(spawnMole, 500);
-    return () => clearTimeout(timeout);
+      if (next.length !== molesRef.current.length || next.some((m, k) => m !== molesRef.current[k])) {
+        molesRef.current = next;
+        setMoles(next);
+      }
+    }, TICK_MS);
+    return () => clearInterval(interval);
   }, []);
 
   const addParticle = useCallback((x: number, y: number, type: "star" | "dust") => {
@@ -353,41 +352,26 @@ export function Game({ onScore, onGameOver, onStats, paused }: GameProps) {
 
   const handleWhack = useCallback(
     (mole: Mole, clientX: number, clientY: number) => {
-      // Mark as whacked in ref
+      if (pausedRef.current) return;
+      // Mark as whacked; the game clock removes it after the bonk animation.
       molesRef.current = molesRef.current.map((m) =>
-        m.id === mole.id ? { ...m, whacked: true } : m,
+        m.id === mole.id ? { ...m, whacked: true, expiresAt: gameMsRef.current + BONK_MS } : m,
       );
-      setMoles([...molesRef.current]);
+      setMoles(molesRef.current);
 
-      // Update score
-      let delta: number;
-      if (mole.type === "red") {
-        delta = -20;
-        soundsRef.current.playError();
-      } else if (mole.type === "golden") {
-        delta = 50;
-        soundsRef.current.playScore();
-      } else {
-        delta = 10;
-        soundsRef.current.playScore();
-      }
-      scoreRef.current = Math.max(0, scoreRef.current + delta);
+      if (mole.type === "red") soundsRef.current.playError();
+      else soundsRef.current.playScore();
+      scoreRef.current = Math.max(0, scoreRef.current + SCORE_DELTA[mole.type]);
       onScoreRef.current(scoreRef.current);
 
-      // Particle
       addParticle(clientX, clientY, "star");
-
-      // Remove after bonk animation
-      setTimeout(() => {
-        molesRef.current = molesRef.current.filter((m) => m.id !== mole.id);
-        setMoles([...molesRef.current]);
-      }, 300);
     },
     [addParticle],
   );
 
   const handleHoleMiss = useCallback(
     (e: React.PointerEvent, holeIndex: number) => {
+      if (pausedRef.current) return;
       // Only trigger dust if no mole is in this hole
       const hasMole = molesRef.current.some((m) => m.hole === holeIndex && !m.whacked);
       if (!hasMole) {
@@ -417,7 +401,8 @@ export function Game({ onScore, onGameOver, onStats, paused }: GameProps) {
         }}
       >
         {Array.from({ length: HOLES }).map((_, i) => {
-          const mole = moles.find((m) => m.hole === i);
+          // Hidden while paused so the pause can't be used to plan hits.
+          const mole = paused ? undefined : moles.find((m) => m.hole === i);
           return (
             <div
               key={i}

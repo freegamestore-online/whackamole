@@ -38,6 +38,7 @@ export default function App() {
   }, []);
 
   const start = useCallback(() => {
+    setPaused(false);
     setScore(0);
     scoreRef.current = 0;
     setGameKey((k) => k + 1);
@@ -74,7 +75,7 @@ export default function App() {
               <h4 style={{ fontWeight: 600 }}>Rules</h4>
               <ul><li>Tap moles when they pop up — 30-second rounds</li></ul>
               <h4 style={{ fontWeight: 600 }}>Scoring</h4>
-              <ul><li>Green mole: +1 point</li><li>Red mole: -1 point (avoid!)</li><li>Golden mole: +3 bonus</li></ul>
+              <ul><li>Brown mole: +10 points</li><li>Red mole: -20 points (avoid!)</li><li>Golden mole: +50 bonus</li><li>Score never drops below 0</li></ul>
             </div>
           }
         />
